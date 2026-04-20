@@ -51,39 +51,30 @@ These are not to be used for other purposes:
   docker push ghcr.io/siksil/qemuarm-64-airadeck-core:2026.4.2
   ```
 
-## 1.0 Frontend [cite: 32]
+## 1.0 Frontend (dev container)
 
-### 1.1 Rebranding Scripts [cite: 33]
-Run the rebranding scripts: [cite: 34]
+### 1.1 Rebranding Scripts
+Run the rebranding scripts: 
 ```bash
 ./patch_brand.sh # rebrand text [cite: 35]
 ./patch_colors.sh # swap palette [cite: 36]
 ```
-Run the image replacement script (work in progress). [cite: 37, 38]
+Run the image replacement script (work in progress). 
 
-### 1.2 How to Compile / Build [cite: 39]
-1. Install dependencies (first time only): [cite: 40]
+### 1.2 How to Compile / Build 
+1. Install dependencies (first time only): 
    ```bash
    script/setup
    ```
 2. Production build (output goes to `hass_frontend/` for HA)
-   * For normal frontend
+   * For normal frontend output .whl goes to dist/ directory
      ```bash
-     script/build_frontend
+     ./script/release
      ```
    * For landing page:
      ```bash
      landing-page/script/develop
      ```
-3. Lint before committing:
-   ```bash
-   yarn lint
-   ```
-4. Ensure 'build' is installed: `pip install build`. Then run
-   ```bash
-   python3 -m build
-   ```
-6. A `.whl` file will be created at `./dist/home_assistant_frontend-*.whl`.
 
 ## 2.0 Core
 
