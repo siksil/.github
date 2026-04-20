@@ -48,7 +48,7 @@ These are not to be used for other purposes:
   ```
   **Example:**
   ```bash
-  docker push ghcr.io/siksil/qemuarm-64-airadeck-core:2026.4.2
+  docker push ghcr.io/siksil/qemuarm-64-homeassistant:2026.4.2
   ```
 
 ## 1.0 Frontend (dev container)
