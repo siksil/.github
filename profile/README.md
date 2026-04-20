@@ -84,28 +84,28 @@ Run the image replacement script (work in progress).
 * Create a `Dockerfile` in an empty directory, and place the `.whl` file there.
 
 ```dockerfile
-# Create this Dockerfile in an empty directory [cite: 55]
-# Start with the official Home Assistant Core image as the base. [cite: 56]
-# Using the qemux86-64/qemuarm-64 machine type as a standard baseline. [cite: 57]
-FROM ghcr.io/home-assistant/qemuarm-64-homeassistant:2026.4.2 [cite: 58, 59]
+# Create this Dockerfile in an empty directory 
+# Start with the official Home Assistant Core image as the base. 
+# Using the qemux86-64/qemuarm-64 machine type as a standard baseline. 
+FROM ghcr.io/home-assistant/qemuarm-64-homeassistant:2026.4.2 
 
-# Copy your custom wheel file into the container's temporary directory [cite: 60]
-COPY home_assistant_frontend-*.whl /tmp/ [cite: 61]
+# Copy your custom wheel file into the container's temporary directory 
+COPY home_assistant_frontend-*.whl /tmp/
 
-# Force pip to install your custom wheel, overwriting the vanilla Home Assistant core/frontend packages [cite: 62]
-RUN pip3 install --no-cache-dir --upgrade --force-reinstall /tmp/home_assistant_frontend-*.whl [cite: 63]
+# Force pip to install your custom wheel, overwriting the vanilla Home Assistant core/frontend packages 
+RUN pip3 install --no-cache-dir --upgrade --force-reinstall /tmp/home_assistant_frontend-*.whl 
 
-# Clean up the temporary file to keep the image size small [cite: 63]
-RUN rm /tmp/home_assistant_frontend-*.whl [cite: 64]
+# Clean up the temporary file to keep the image size small 
+RUN rm /tmp/home_assistant_frontend-*.whl 
 ```
 
 **Build and Tag:** 
 ```bash
-docker build -t <package:tag>
+docker build -t <package:tag> .
 ```
 **Example:** 
 ```bash
-docker build -t ghcr.io/siksil/qemuarm-64-airadeck-core:2026.4.2
+docker build -t ghcr.io/siksil/qemuarm-64-homeassistant:2026.4.2 .
 ```
 
 ### 2.2 Custom Core Image 
