@@ -133,11 +133,11 @@ docker build --platform linux/arm64 --build-arg BUILD_FROM="ghcr.io/home-assista
 
 Push it to ghcr. [See 0.4 Upload Image to GHCR](#04-upload-image-to-ghcr). 
 
-## 3.0 Supervisor [cite: 87]
+## 3.0 Supervisor 
 *(Must run in a devcontainer)* 
-* Check the links given in `FILES_TO_PATCH.txt`. 
+* Run `patch_brand.sh`. 
 
-**Build:** [
+**Build:** (Remember to make sure the build container is proper platform)
 ```bash
 docker buildx build --platform linux/arm64 --tag YOUR_REGISTRY_PATH/aarch64-hassio-supervisor:latest --load .
 ```
