@@ -145,7 +145,11 @@ docker buildx build --platform linux/arm64 --tag YOUR_REGISTRY_PATH/aarch64-hass
 
 ## 6. Operating System 
 *(Dev container recommended)* 
-* Check the file for replacements: `LIST_OF_FILES.txt`. 
+* Check the file for replacements: `LIST_OF_FILES.txt`.
+* Initialise:
+  ``` bash
+  git submodule update --init
+  ```
 * Enter Build:
   ```bash
   ./scripts/enter.sh
