@@ -135,9 +135,17 @@ Push it to ghcr. [See 0.4 Upload Image to GHCR](#04-upload-image-to-ghcr).
 
 ## 3.0 Supervisor 
 *(Must run in a devcontainer)* 
-* Run `patch_brand.sh`. 
 
-**Build:** (Remember to make sure the build container is proper platform)
+* Check the BUILD VERSION in DockerFile and patch_brand.sh
+* Run `patch_brand.sh`.
+
+* Remember to make sure the build container is proper platform
+  ```bash
+  docker buildx ls    # to list the buildcontainers
+  docker buildx use <container-name>     # to use/switch a container
+  ```
+
+**Build:** 
 ```bash
 docker buildx build --platform linux/arm64 --tag YOUR_REGISTRY_PATH/aarch64-hassio-supervisor:latest --load .
 ```
