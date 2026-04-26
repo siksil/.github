@@ -153,7 +153,10 @@ docker buildx build --platform linux/arm64 --tag YOUR_REGISTRY_PATH/aarch64-hass
 
 ## 6. Operating System 
 *(Dev container recommended)* 
-* Check the file for replacements: `LIST_OF_FILES.txt`.
+* Run the patch script.
+  ```bash
+  ./patch_brand.sh
+  ```
 * Initialise:
   ``` bash
   git submodule update --init
