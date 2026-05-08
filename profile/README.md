@@ -1,173 +1,93 @@
-# OS REBRANDING PRODUCTION PIPELINE 
+# Inpui Rebranding & Architecture Workflow
 
-## Table of Contents
-- [0.1 Prerequisites](#01-prerequisites)
-- [0.2 Stable Branch of Official HAOS](#02-stable-branch-of-official-haos)
-- [0.3 Rebranded Branch](#03-rebranded-branch)
-- [0.4 Upload Image to GHCR](#04-upload-image-to-ghcr)
-- [1.0 Frontend](#10-frontend)
-  - [1.1 Rebranding Scripts](#11-rebranding-scripts)
-  - [1.2 How to Compile / Build](#12-how-to-compile--build)
-- [2.0 Core](#20-core)
-  - [2.1 Repack Official Core with Modified Frontend](#21-repack-official-core-with-modified-frontend)
-  - [2.2 Custom Core Image](#22-custom-core-image)
-- [3.0 Supervisor](#30-supervisor)
-- [6. Operating System](#6-operating-system)
+This document outlines the architecture, update strategy, and exact workflow for maintaining the Inpui ecosystem, minimizing maintenance overhead while maximizing user-facing brand presence.
+
+## 1. System Architecture (Debian Supervised)
+To avoid the immense engineering burden of maintaining a custom embedded Linux operating system (like HAOS), the Inpui physical hubs use a **Supervised** architecture:
+- **Base OS:** Standard, un-modified Debian Linux.
+- **OS Updates:** Managed automatically via Debian's native `unattended-upgrades` (silent background security patching, automatic 3 AM reboots for kernel updates).
+- **Docker Orchestrator:** The **Supervisor** runs as a privileged Docker container. It manages the lifecycle, OTA updates, and configuration of the `core` container and system plugins.
+- **Application Engine:** The **Core** container runs the backend Python logic and serves the rebranded Inpui frontend.
+
+## 2. Repositories You MUST Rebrand & Maintain
+These are the user-facing repositories that must be forked and modified:
+
+*   **`frontend`**: The web interface, UI components, SVG logos, CSS, and manifest.
+    *   *Build:* Compiles via GitHub Actions into a `.whl` package (Python Wheel).
+*   **`core`**: The main backend engine.
+    *   *Build:* The CI/CD (`builder.yml`) fetches the frontend `.whl` artifact, pulls the secure upstream base image, and pushes the final rebranded `ghcr.io/siksil/amd64-homeassistant` images.
+*   **`supervisor`**: The Docker orchestrator.
+    *   *Modifications:* Needs to be forked to replace hardcoded `ghcr.io/home-assistant` URLs with `ghcr.io/siksil` so it pulls the custom Inpui core image during OTA updates.
+*   **`supervised-installer`**: The Debian installation script.
+    *   *Modifications:* Must be modified to install your custom `supervisor` container instead of the official one.
+*   **`android` / `iOS`**: The mobile companion apps.
+
+## 3. Repositories You Do NOT Touch
+Maintaining these is an unnecessary burden and breaks community compatibility.
+*   **`operating-system` (HAOS):** Replaced by standard Debian.
+*   **`docker` (Base Images):** The upstream Alpine/Python base images containing FFmpeg and C-libraries.
+*   **Third-Party Add-ons & HACS:** All community integrations and Add-ons (like Frigate) will continue to work perfectly because the internal Python namespace (`import homeassistant`) remains untouched.
+
+## 4. Disaster Recovery & Backup Mirrors
+To ensure Inpui remains operational even if the upstream Home Assistant repositories go offline, you should mirror the exact multi-architecture manifests of the following hidden infrastructure images into your `ghcr.io/siksil` registry:
+
+1.  **Build Bases:** 
+    *   `amd64-homeassistant-base` (Required for building Core)
+    *   `amd64-base` (Required for building Supervisor)
+2.  **CI/CD Tools:**
+    *   `hassfest`
+3.  **Supervisor Runtime Plugins:**
+    *   `plugin-dns`, `plugin-multicast`, `plugin-audio`, `plugin-observer`, `plugin-cli`
+4.  **Binaries:**
+    *   `os-agent` (.deb releases)
+
+*(Use the script in `base-mirror/mirror.sh` to quickly clone these from `ghcr.io/home-assistant` to `ghcr.io/siksil`.)*
+
+## 5. Maintenance & OTA Update Flow
+When you want to release a new version of Inpui to your users, you will utilize the GitHub Actions CI/CD pipeline. The core Supervisor will handle pulling and applying these updates automatically on the user's hub.
 
 ---
 
-## 0.1 Prerequisites 
-* All repositories and packages are at the `github siksil` organisation. 
-* The version JSON is hosted via GitHub repo pages at: `https://siksil.github.io/version/`. 
-* Update this regularly to match both official and custom registries and versions.
+## 6. Build Instructions & CI/CD Pipeline
 
-## 0.2 Stable Branch of Official HAOS 
-You should rebase our codebase from here: 
-* `core` -> `master` 
-* `frontend` -> `master` 
-* `supervisor` -> `main` 
-* `op-system` -> `main` 
+The build architecture is separated into two decoupled components: the **Frontend** and the **Core**. They communicate via `.whl` (Python Wheel) artifacts during the build phase.
 
-## 0.3 Rebranded Branch 
-These are not to be used for other purposes:
-* `production`: For stable production rollout (after testing everything on dev). 
-* `dev`: For testing rollout.
-* `base`: For rebasing with the official HAOS stable release branch. 
-* Other branches may be created, but make sure to delete them after use. 
+### A. Local Development & Testing
 
-## 0.4 Upload Image to GHCR 
-* Make sure the docker daemon is properly loaded (e.g., Docker Desktop or others).
-* Login to GitHub Docker:
-  ```bash
-  docker login ghcr.io -u YOUR_PERSONAL_GITHUB_USERNAME
-  ```
-  *(Note: You will have to create a personal token first for read, write, and delete permissions.)* 
-* Upload to ghcr: 
-  ```bash
-  docker push <image>
-  ```
-  **Example:**
-  ```bash
-  docker push ghcr.io/siksil/qemuarm-64-homeassistant:2026.4.2
-  ```
+#### Building the Frontend Locally
+If you want to test UI changes locally without triggering a GitHub Action:
+1. Navigate to the `frontend` repository.
+2. Ensure you have Node.js and Yarn installed.
+3. Run `yarn install` to fetch dependencies.
+4. Run `script/build_frontend` to compile the frontend assets.
+5. The output will be a Python wheel in the `dist/` directory (e.g., `dist/home_assistant_frontend-2026xxxx.x-py3-none-any.whl`).
 
-## 1.0 Frontend (dev container)
+#### Running the Core Locally
+If you want to test the Core engine locally on your Mac/PC:
+1. Navigate to the `core` repository.
+2. Create and activate a Python virtual environment: `python3 -m venv venv && source venv/bin/activate`
+3. Run `script/setup` to install dependencies.
+4. **Link the Frontend:** If you built a custom frontend wheel locally (from Step A), install it into your core venv: `pip install ../frontend/dist/home_assistant_frontend-*.whl --force-reinstall`
+5. Run the core locally: `hass -c config/`
+6. The UI will be available at `http://localhost:8123`
 
-### 1.1 Rebranding Scripts
-Run the rebranding scripts: 
-```bash
-./patch_brand.sh # rebrand text [cite: 35]
-./patch_colors.sh # swap palette [cite: 36]
-```
-Run the image replacement script (work in progress). 
+### B. The GitHub Actions Pipeline (Production Builds)
 
-### 1.2 How to Compile / Build 
-1. Install dependencies (first time only): 
-   ```bash
-   script/setup
-   ```
-2. Production build (output goes to `hass_frontend/` for HA)
-   * For normal frontend output .whl goes to dist/ directory
-     ```bash
-     ./script/release
-     ```
-   * For landing page:
-     ```bash
-     landing-page/script/develop
-     ```
+The production pipeline is heavily optimized to save compute minutes and prevent accidental releases. It uses a **Dual-Channel Strategy** (`stable` and `dev`).
 
-## 2.0 Core
+#### 1. Frontend Actions (Manual Trigger)
+The frontend builds are **manual-only**. Committing code does not trigger a build.
+*   **Build Stable (`build_stable.yaml`):** Go to the Actions tab and manually run this on the `master` branch. It will compile a stable wheel (e.g., `20260509.0`) and save it as an artifact named `wheels`.
+*   **Build Dev (`build_dev.yaml`):** Manually run this on the `dev` branch. It will compile a nightly wheel (e.g., `20260509.0.dev0`) and save it as an artifact named `wheels-dev`.
 
-### 2.1 Repack Official Core with Modified Frontend (Easy for Testing)
+#### 2. Core Actions (Release Trigger)
+The core builds are triggered **only when you publish a GitHub Release**.
+*   **Stable Release:** Create a standard Release in GitHub (e.g., Tag: `2026.5.0`). 
+    *   The action (`builder.yml`) automatically downloads the `wheels` artifact from the frontend's `master` branch.
+    *   It builds the production Docker image and pushes it to GHCR (`ghcr.io/siksil/amd64-homeassistant:2026.5.0` and `:stable`).
+*   **Pre-Release (Dev):** Create a Release in GitHub, but check the **"Set as a pre-release"** checkbox (e.g., Tag: `2026.5.0.dev0`).
+    *   The action automatically switches to the `dev` channel.
+    *   It downloads the `wheels-dev` artifact from the frontend's `dev` branch.
+    *   It builds the dev Docker image and pushes it to GHCR (`ghcr.io/siksil/amd64-homeassistant:2026.5.0.dev0` and `:dev`).
 
-* The example is for `qemuarm-64`. Change it to your architecture and tag your version (Intel: `qemux86-64` | Rasp-Pi: `qemuarm64`).
-* Create a `Dockerfile` in an empty directory, and place the `.whl` file there.
-
-```dockerfile
-# Create this Dockerfile in an empty directory 
-# Start with the official Home Assistant Core image as the base. 
-# Using the qemux86-64/qemuarm-64 machine type as a standard baseline. 
-FROM ghcr.io/home-assistant/qemuarm-64-homeassistant:2026.4.2 
-
-# Copy your custom wheel file into the container's temporary directory 
-COPY home_assistant_frontend-*.whl /tmp/
-
-# Force pip to install your custom wheel, overwriting the vanilla Home Assistant core/frontend packages 
-RUN pip3 install --no-cache-dir --upgrade --force-reinstall /tmp/home_assistant_frontend-*.whl 
-
-# Clean up the temporary file to keep the image size small 
-RUN rm /tmp/home_assistant_frontend-*.whl 
-```
-
-**Build and Tag:** 
-```bash
-docker build -t <package:tag> .
-```
-**Example:** 
-```bash
-docker build -t ghcr.io/siksil/qemuarm-64-homeassistant:2026.4.2 .
-```
-
-### 2.2 Custom Core Image 
-* **Note:** Place the `.whl` frontend package on the root directory of the core workspace.
-* Docker build the core: 
-* Extract the version from `pyproject.toml` (currently 2026.4.3):
-  ```bash
-  export VERSION=$(grep -E '^version = ".*"' pyproject.toml | cut -d '"' -f 2)
-  ```
-* Build the AeonDeck image (tag it appropriately; there can be multiple tags): *
-  ```bash
-  docker build --build-arg BUILD_FROM=<codebase> -t package:tag .
-  ``` 
-  *Note that there can be multiple `-t package:tag`. Also note the `.` at the end.
-
-**Example: for amd64 (Intel)** 
-```bash
-docker build --build-arg BUILD_FROM="ghcr.io/home-assistant/amd64-base-python:3.14-alpine3.21" -t ghcr.io/siksil/qemux86-64-airadeck-core:2026.4.2 -t aeon-core:latest .
-```
-
-**Example for arm64 (Raspberry Pi, Mac)** 
-```bash
-docker build --platform linux/arm64 --build-arg BUILD_FROM="ghcr.io/home-assistant/aarch64-base-python:3.14-alpine3.21" -t ghcr.io/siksil/qemuarm-64-airadeck-core:2026.4.2 .
-```
-
-Push it to ghcr. [See 0.4 Upload Image to GHCR](#04-upload-image-to-ghcr). 
-
-## 3.0 Supervisor 
-*(Must run in a devcontainer)* 
-
-* Check the BUILD VERSION in DockerFile and patch_brand.sh
-* Run `patch_brand.sh`.
-
-* Remember to make sure the build container is proper platform
-  ```bash
-  docker buildx ls    # to list the buildcontainers
-  docker buildx use <container-name>     # to use/switch a container
-  ```
-
-**Build:** 
-```bash
-docker buildx build --platform linux/arm64 --tag YOUR_REGISTRY_PATH/aarch64-hassio-supervisor:latest --load .
-```
-* Upload to ghcr 
-
-## 6. Operating System 
-*(Dev container recommended)* 
-* Run the patch script.
-  ```bash
-  ./patch_brand.sh
-  ```
-* Initialise:
-  ``` bash
-  git submodule update --init
-  ```
-* Enter Build:
-  ```bash
-  ./scripts/enter.sh
-  ```
-* Make: `make <arch>` 
-  * **Example:**
-    ```bash
-    make generic_aarch64
-    ```
-* Check `output>images`. 
+> **Important Versioning Note:** The core version is hardcoded in `pyproject.toml` and `inpui/const.py` (`MAJOR_VERSION`, `MINOR_VERSION`, `PATCH_VERSION`). Always update these files to match your Release tag before publishing a release!
