@@ -91,3 +91,16 @@ The core builds are triggered **only when you publish a GitHub Release**.
     *   It builds the dev Docker image and pushes it to GHCR (`ghcr.io/siksil/amd64-homeassistant:2026.5.0.dev0` and `:dev`).
 
 > **Important Versioning Note:** The core version is hardcoded in `pyproject.toml` and `inpui/const.py` (`MAJOR_VERSION`, `MINOR_VERSION`, `PATCH_VERSION`). Always update these files to match your Release tag before publishing a release!
+
+### C. Private Repository Requirements (GitHub Tokens)
+
+The `core` builder action reaches across repositories to download the compiled `.whl` from the `frontend` repository. 
+
+*   **If your repositories are PUBLIC:** No action is needed. The default GitHub token works automatically.
+*   **If your repositories are PRIVATE:** The default token cannot read files across repositories. The build will fail with a `404 Not Found` error.
+
+**To fix private repository access:**
+1. Generate a **Personal Access Token (Classic)** in your GitHub Developer Settings with full `repo` permissions.
+2. Go to the Settings of your `siksil/core` repository -> **Secrets and variables** -> **Actions**.
+3. Add a new repository secret called `PAT_TOKEN` and paste your token.
+4. In `core/.github/workflows/builder.yml`, change the `github_token: ${{secrets.GITHUB_TOKEN}}` lines in the frontend artifact download steps to `github_token: ${{secrets.PAT_TOKEN}}`.
